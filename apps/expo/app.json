@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Pawntree",
+    "slug": "pawntree",
+    "version": "0.1.0",
+    "scheme": "pawntree",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0f1117"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pawntree.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f1117"
+      },
+      "package": "com.pawntree.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

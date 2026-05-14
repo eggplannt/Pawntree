@@ -1,0 +1,30 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Go
+server/tmp/
+server/*.exe
+
+# Node / Expo
+node_modules/
+apps/expo/.expo/
+apps/expo/dist/
+apps/expo/node_modules/
+apps/expo/.env.local
+apps/expo/styles/output.css
+
+# Docker volumes
+pgdata/
+
+# OS
+.DS_Store
+*.swp
+*.swo
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
