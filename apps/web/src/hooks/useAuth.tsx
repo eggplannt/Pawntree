@@ -1,10 +1,6 @@
-import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-
-WebBrowser.maybeCompleteAuthSession();
 
 interface AuthContextValue {
   user: User | null;
@@ -39,27 +35,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    const redirectUri = Linking.createURL('auth/callback');
-
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    console.log(`${window.location.origin}/auth/callback`)
+    await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: redirectUri,
-        skipBrowserRedirect: true,
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
-
-    if (error || !data.url) return;
-
-    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
-
-    if (result.type === 'success') {
-      const url = new URL(result.url);
-      const code = url.searchParams.get('code');
-      if (code) {
-        await supabase.auth.exchangeCodeForSession(code);
-      }
-    }
   }, []);
 
   const signOut = useCallback(async () => {

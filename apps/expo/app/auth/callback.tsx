@@ -1,35 +1,23 @@
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useEffect } from 'react';
+// Native deep link: pawntree://auth/callback?code=<pkce-code>
+// openAuthSessionAsync in useAuth captures the redirect and calls
+// supabase.auth.exchangeCodeForSession() before this screen renders.
+// This screen only appears briefly and shows a spinner.
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { storeToken } from '@/lib/api';
+import { colorTheme } from '@/hooks/useColorTheme';
 
 export default function AuthCallbackScreen() {
-  const router = useRouter();
-  const { token } = useLocalSearchParams<{ token: string }>();
-
-  useEffect(() => {
-    if (!token) {
-      router.replace('/(auth)/login');
-      return;
-    }
-
-    storeToken(token as string).then(() => {
-      // Reload so AuthProvider re-runs fetchMe with the new token
-      if (typeof window !== 'undefined') {
-        window.location.replace('/');
-      } else {
-        router.replace('/(tabs)/library');
-      }
-    });
-  }, [token]);
-
   return (
     <View style={styles.container}>
-      <ActivityIndicator color="#c8a96e" size="large" />
+      <ActivityIndicator color={colorTheme.accent.default} size="large" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f1117', justifyContent: 'center', alignItems: 'center' },
+  container: {
+    flex: 1,
+    backgroundColor: colorTheme.bg.base,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
