@@ -5,10 +5,12 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getOpening, getNodes, buildTree } from '@/lib/openings';
+import { Chessboard } from '@/components/Chessboard';
 import { colorTheme } from '@/hooks/useColorTheme';
 import type { Opening, Node } from '@/types';
 
@@ -46,6 +48,7 @@ function buildParentMap(root: Node): Map<string, Node> {
 export default function OpeningDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
   const [opening, setOpening] = useState<Opening | null>(null);
   const [tree, setTree] = useState<Node | null>(null);
   const [currentNode, setCurrentNode] = useState<Node | null>(null);
@@ -128,6 +131,7 @@ export default function OpeningDetailScreen() {
 
   const hasNext = !!(currentNode?.children?.length);
   const hasPrev = !!(currentNode && parentMap.has(currentNode.id));
+  const boardSize = screenWidth - 24; // 12px padding each side
 
   if (loading) {
     return (
@@ -149,11 +153,12 @@ export default function OpeningDetailScreen() {
   }
 
   const isWhite = opening.color === 'white';
+  const boardFen = currentNode?.fen ?? tree.fen;
 
   return (
     <SafeAreaView className="flex-1 bg-bg-base">
       {/* Header */}
-      <View className="flex-row items-center gap-2 px-4 py-3 border-b border-border">
+      <View className="flex-row items-center gap-2 px-4 py-2">
         <Pressable
           onPress={() => router.back()}
           className="w-8 h-8 items-center justify-center rounded-lg active:bg-bg-elevated"
@@ -163,44 +168,46 @@ export default function OpeningDetailScreen() {
         <Text className={`text-lg ${isWhite ? 'text-gold' : 'text-accent'}`}>
           {isWhite ? '♔' : '♚'}
         </Text>
-        <Text className="text-content-primary text-lg font-semibold flex-1" numberOfLines={1}>
+        <Text className="text-content-primary text-base font-semibold flex-1" numberOfLines={1}>
           {opening.name}
         </Text>
       </View>
 
-      {/* Current position info */}
-      <View className="px-4 py-3 bg-bg-surface border-b border-border">
-        <Text className="text-content-secondary text-sm font-mono" numberOfLines={1}>
-          {currentNode?.fen?.split(' ').slice(0, 1).join('') ?? 'Starting position'}
-        </Text>
-        {currentNode?.move_san && (
-          <Text className="text-gold text-base font-semibold mt-1">
-            {movePrefix(currentNode, true)}{currentNode.move_san}
-          </Text>
-        )}
-        {!currentNode?.move_san && (
-          <Text className="text-content-muted text-sm mt-1">Starting position</Text>
-        )}
+      {/* Board — central focus */}
+      <View className="items-center px-3">
+        <View style={{ width: boardSize, maxWidth: 500 }}>
+          <Chessboard
+            fen={boardFen}
+            orientation={opening.color}
+          />
+        </View>
       </View>
 
-      {/* Annotation */}
-      {currentNode?.annotation && (
-        <View className="px-4 py-2 bg-bg-surface border-b border-border">
-          <Text className="text-content-secondary text-sm">{currentNode.annotation}</Text>
-        </View>
-      )}
-
       {/* Nav controls */}
-      <View className="flex-row items-center justify-center gap-2 px-4 py-3">
+      <View className="flex-row items-center justify-center gap-2 py-2">
         <NavButton onPress={goToStart} disabled={!hasPrev} label="⏮" />
         <NavButton onPress={goPrev} disabled={!hasPrev} label="◀" />
         <NavButton onPress={goNext} disabled={!hasNext} label="▶" />
         <NavButton onPress={goToEnd} disabled={!hasNext} label="⏭" />
       </View>
 
-      {/* Move tree */}
-      <View className="flex-1 border-t border-border">
-        <View className="flex-row items-center gap-2 px-4 py-3 border-b border-border">
+      {/* Current move + annotation */}
+      {currentNode?.move_san && (
+        <View className="px-4 py-1">
+          <Text className="text-gold text-base font-semibold text-center">
+            {movePrefix(currentNode, true)}{currentNode.move_san}
+          </Text>
+        </View>
+      )}
+      {currentNode?.annotation && (
+        <View className="mx-4 mb-1 bg-bg-surface border border-border rounded-lg px-3 py-2">
+          <Text className="text-content-secondary text-sm">{currentNode.annotation}</Text>
+        </View>
+      )}
+
+      {/* Move tree — fills remaining space */}
+      <View className="flex-1 border-t border-border mt-1">
+        <View className="flex-row items-center gap-2 px-4 py-2 border-b border-border">
           <Text className="text-accent text-xs">♟</Text>
           <Text className="text-content-secondary text-xs font-medium uppercase tracking-wider">
             Moves
@@ -283,7 +290,6 @@ function MoveLine({
 
   return (
     <>
-      {/* Main line moves inline */}
       <View className="flex-row flex-wrap items-baseline" style={{ gap: 2 }}>
         {mainRun.map((node, i) => (
           <MoveButton
@@ -296,7 +302,6 @@ function MoveLine({
         ))}
       </View>
 
-      {/* Variations */}
       {alts.map((alt) => (
         <VariationBlock
           key={alt.id}
@@ -306,7 +311,6 @@ function MoveLine({
         />
       ))}
 
-      {/* Continue main line after branch point */}
       {branchesAfterRun.length > 0 && (
         <MoveLine nodes={branchesAfterRun} selected={selected} onSelect={onSelect} />
       )}
@@ -393,9 +397,7 @@ function MoveButton({
         onPress={() => onSelect(node)}
         className={[
           'px-1.5 py-0.5 rounded-md',
-          selected
-            ? 'bg-gold/20'
-            : '',
+          selected ? 'bg-gold/20' : '',
         ].join(' ')}
         style={selected ? { borderWidth: 1, borderColor: colorTheme.gold.default + '60' } : undefined}
       >
