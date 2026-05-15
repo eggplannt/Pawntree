@@ -1,9 +1,11 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { ThemeContext, useThemeProvider } from '@/hooks/useColorTheme';
 import Login from '@/pages/Login';
 import Library from '@/pages/Library';
 import Review from '@/pages/Review';
 import Settings from '@/pages/Settings';
+import OpeningDetail from '@/pages/OpeningDetail';
 import AuthCallback from '@/pages/AuthCallback';
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -64,6 +66,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/library/:id"
+        element={
+          <AuthGuard>
+            <OpeningDetail />
+          </AuthGuard>
+        }
+      />
+      <Route
         path="/review"
         element={
           <AuthGuard>
@@ -84,10 +94,21 @@ function AppRoutes() {
   );
 }
 
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const themeValue = useThemeProvider();
+  return (
+    <ThemeContext.Provider value={themeValue}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
 export default function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
