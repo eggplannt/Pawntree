@@ -4,9 +4,10 @@ const { withNativeWind } = require('nativewind/metro');
 
 const config = getDefaultConfig(__dirname);
 
-// Allow Metro to resolve files from the monorepo root (e.g. theme/colors.json)
-const monorepoRoot = path.resolve(__dirname, '../..');
-config.watchFolders = [monorepoRoot];
+// Only watch the shared theme folder, not the entire monorepo
+config.watchFolders = [
+  path.resolve(__dirname, '../../theme'),
+];
 config.resolver.nodeModulesPaths = [
   path.resolve(__dirname, 'node_modules'),
 ];

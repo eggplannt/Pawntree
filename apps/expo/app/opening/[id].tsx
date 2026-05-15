@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   Pressable,
   ScrollView,
   ActivityIndicator,
+  InteractionManager,
   useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getOpening, getNodes, buildTree } from '@/lib/openings';
+import { getNodes, buildTree } from '@/lib/openings';
 import { Chessboard } from '@/components/Chessboard';
 import { colorTheme } from '@/hooks/useColorTheme';
 import type { Opening, Node } from '@/types';
@@ -46,14 +47,26 @@ function buildParentMap(root: Node): Map<string, Node> {
 // ── Main Component ──────────────────────────────────────────────────────────
 
 export default function OpeningDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; name?: string; color?: string }>();
+  const id = params.id;
   const router = useRouter();
   const { width: screenWidth } = useWindowDimensions();
-  const [opening, setOpening] = useState<Opening | null>(null);
+
+  // Opening metadata passed from library — avoids a separate query
+  const [opening] = useState<Opening>(() => ({
+    id,
+    user_id: '',
+    name: params.name ?? 'Opening',
+    color: (params.color as 'white' | 'black') ?? 'white',
+    description: null,
+    created_at: '',
+  }));
+
   const [tree, setTree] = useState<Node | null>(null);
   const [currentNode, setCurrentNode] = useState<Node | null>(null);
   const [forwardStack, setForwardStack] = useState<Node[]>([]);
   const [loading, setLoading] = useState(true);
+  const [treeReady, setTreeReady] = useState(false);
   const moveListRef = useRef<ScrollView>(null);
 
   const parentMap = useMemo(
@@ -61,32 +74,51 @@ export default function OpeningDetailScreen() {
     [tree],
   );
 
+  const nodeMap = useMemo(() => {
+    if (!tree) return new Map<string, Node>();
+    const map = new Map<string, Node>();
+    function walk(node: Node) {
+      map.set(node.id, node);
+      for (const child of node.children ?? []) walk(child);
+    }
+    walk(tree);
+    return map;
+  }, [tree]);
+
   useEffect(() => {
     if (!id) return;
-    loadData(id);
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      setTreeReady(false);
+      try {
+        // Single query — opening data already passed via params
+        const nodes = await getNodes(id);
+        if (cancelled) return;
+        const t = buildTree(nodes);
+        setTree(t);
+        setCurrentNode(t);
+        setForwardStack([]);
+        setLoading(false);
+        InteractionManager.runAfterInteractions(() => {
+          if (!cancelled) setTreeReady(true);
+        });
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [id]);
 
-  async function loadData(openingId: string) {
-    setLoading(true);
-    try {
-      const [o, nodes] = await Promise.all([
-        getOpening(openingId),
-        getNodes(openingId),
-      ]);
-      setOpening(o);
-      const t = buildTree(nodes);
-      setTree(t);
-      setCurrentNode(t);
+  const selectNode = useCallback((nodeId: string) => {
+    const node = nodeMap.get(nodeId);
+    if (node) {
+      setCurrentNode(node);
       setForwardStack([]);
-    } finally {
-      setLoading(false);
     }
-  }
-
-  const selectNode = useCallback((node: Node) => {
-    setCurrentNode(node);
-    setForwardStack([]);
-  }, []);
+  }, [nodeMap]);
 
   const goNext = useCallback(() => {
     if (!currentNode) return;
@@ -96,8 +128,7 @@ export default function OpeningDetailScreen() {
         if (parentMap.get(forwardStack[i].id) === currentNode) { idx = i; break; }
       }
       if (idx >= 0) {
-        const next = forwardStack[idx];
-        setCurrentNode(next);
+        setCurrentNode(forwardStack[idx]);
         setForwardStack(forwardStack.slice(0, idx));
         return;
       }
@@ -131,7 +162,8 @@ export default function OpeningDetailScreen() {
 
   const hasNext = !!(currentNode?.children?.length);
   const hasPrev = !!(currentNode && parentMap.has(currentNode.id));
-  const boardSize = screenWidth - 24; // 12px padding each side
+  const boardSize = screenWidth - 24;
+  const selectedId = currentNode?.id ?? null;
 
   if (loading) {
     return (
@@ -141,13 +173,20 @@ export default function OpeningDetailScreen() {
     );
   }
 
-  if (!opening || !tree) {
+  if (!tree) {
+    if (!loading) {
+      return (
+        <SafeAreaView className="flex-1 bg-bg-base p-6">
+          <Text className="text-content-muted">Opening not found.</Text>
+          <Pressable onPress={() => router.back()} className="mt-2">
+            <Text className="text-accent text-sm">Back to Library</Text>
+          </Pressable>
+        </SafeAreaView>
+      );
+    }
     return (
-      <SafeAreaView className="flex-1 bg-bg-base p-6">
-        <Text className="text-content-muted">Opening not found.</Text>
-        <Pressable onPress={() => router.back()} className="mt-2">
-          <Text className="text-accent text-sm">Back to Library</Text>
-        </Pressable>
+      <SafeAreaView className="flex-1 bg-bg-base items-center justify-center">
+        <ActivityIndicator color={colorTheme.accent.default} />
       </SafeAreaView>
     );
   }
@@ -173,13 +212,10 @@ export default function OpeningDetailScreen() {
         </Text>
       </View>
 
-      {/* Board — central focus */}
+      {/* Board */}
       <View className="items-center px-3">
         <View style={{ width: boardSize, maxWidth: 500 }}>
-          <Chessboard
-            fen={boardFen}
-            orientation={opening.color}
-          />
+          <Chessboard fen={boardFen} orientation={opening.color} />
         </View>
       </View>
 
@@ -205,7 +241,7 @@ export default function OpeningDetailScreen() {
         </View>
       )}
 
-      {/* Move tree — fills remaining space */}
+      {/* Move tree — deferred until board is visible */}
       <View className="flex-1 border-t border-border mt-1">
         <View className="flex-row items-center gap-2 px-4 py-2 border-b border-border">
           <Text className="text-accent text-xs">♟</Text>
@@ -213,15 +249,21 @@ export default function OpeningDetailScreen() {
             Moves
           </Text>
         </View>
-        <ScrollView ref={moveListRef} className="flex-1 p-3">
-          <MoveTree root={tree} selected={currentNode} onSelect={selectNode} />
-        </ScrollView>
+        {treeReady ? (
+          <ScrollView ref={moveListRef} className="flex-1 p-3">
+            <MoveTree root={tree} selectedId={selectedId} onSelect={selectNode} />
+          </ScrollView>
+        ) : (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="small" color={colorTheme.accent.default} />
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
 }
 
-function NavButton({
+const NavButton = memo(function NavButton({
   onPress,
   disabled,
   label,
@@ -244,7 +286,7 @@ function NavButton({
       </Text>
     </Pressable>
   );
-}
+});
 
 // ── Move Tree Renderer ──────────────────────────────────────────────────────
 
@@ -258,29 +300,29 @@ function collectMainRun(start: Node): Node[] {
   return run;
 }
 
-function MoveTree({
+const MoveTree = memo(function MoveTree({
   root,
-  selected,
+  selectedId,
   onSelect,
 }: {
   root: Node;
-  selected: Node | null;
-  onSelect: (n: Node) => void;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }) {
   if (!root.children?.length) {
     return <Text className="text-content-muted text-sm">No moves yet.</Text>;
   }
-  return <MoveLine nodes={root.children} selected={selected} onSelect={onSelect} />;
-}
+  return <MoveLine nodes={root.children} selectedId={selectedId} onSelect={onSelect} />;
+});
 
-function MoveLine({
+const MoveLine = memo(function MoveLine({
   nodes,
-  selected,
+  selectedId,
   onSelect,
 }: {
   nodes: Node[];
-  selected: Node | null;
-  onSelect: (n: Node) => void;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }) {
   if (nodes.length === 0) return null;
   const [main, ...alts] = nodes;
@@ -295,7 +337,7 @@ function MoveLine({
           <MoveButton
             key={node.id}
             node={node}
-            selected={selected?.id === node.id}
+            selected={selectedId === node.id}
             onSelect={onSelect}
             forceNumber={i === 0}
           />
@@ -306,26 +348,26 @@ function MoveLine({
         <VariationBlock
           key={alt.id}
           node={alt}
-          selected={selected}
+          selectedId={selectedId}
           onSelect={onSelect}
         />
       ))}
 
       {branchesAfterRun.length > 0 && (
-        <MoveLine nodes={branchesAfterRun} selected={selected} onSelect={onSelect} />
+        <MoveLine nodes={branchesAfterRun} selectedId={selectedId} onSelect={onSelect} />
       )}
     </>
   );
-}
+});
 
-function VariationBlock({
+const VariationBlock = memo(function VariationBlock({
   node,
-  selected,
+  selectedId,
   onSelect,
 }: {
   node: Node;
-  selected: Node | null;
-  onSelect: (n: Node) => void;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const run = collectMainRun(node);
@@ -348,7 +390,7 @@ function VariationBlock({
           <>
             <MoveButton
               node={run[0]}
-              selected={selected?.id === run[0].id}
+              selected={selectedId === run[0].id}
               onSelect={onSelect}
               forceNumber
             />
@@ -359,7 +401,7 @@ function VariationBlock({
             <MoveButton
               key={n.id}
               node={n}
-              selected={selected?.id === n.id}
+              selected={selectedId === n.id}
               onSelect={onSelect}
               forceNumber={i === 0}
             />
@@ -368,13 +410,13 @@ function VariationBlock({
       </View>
 
       {!collapsed && branchesAfterRun.length > 0 && (
-        <MoveLine nodes={branchesAfterRun} selected={selected} onSelect={onSelect} />
+        <MoveLine nodes={branchesAfterRun} selectedId={selectedId} onSelect={onSelect} />
       )}
     </View>
   );
-}
+});
 
-function MoveButton({
+const MoveButton = memo(function MoveButton({
   node,
   selected,
   onSelect,
@@ -382,11 +424,12 @@ function MoveButton({
 }: {
   node: Node;
   selected: boolean;
-  onSelect: (n: Node) => void;
+  onSelect: (id: string) => void;
   forceNumber: boolean;
 }) {
   const prefix = movePrefix(node, forceNumber);
   const white = isWhiteMove(node);
+  const handlePress = useCallback(() => onSelect(node.id), [onSelect, node.id]);
 
   return (
     <View className="flex-row items-baseline">
@@ -394,7 +437,7 @@ function MoveButton({
         <Text className="text-content-muted text-xs font-mono mr-0.5">{prefix}</Text>
       ) : null}
       <Pressable
-        onPress={() => onSelect(node)}
+        onPress={handlePress}
         className={[
           'px-1.5 py-0.5 rounded-md',
           selected ? 'bg-gold/20' : '',
@@ -416,4 +459,4 @@ function MoveButton({
       </Pressable>
     </View>
   );
-}
+});

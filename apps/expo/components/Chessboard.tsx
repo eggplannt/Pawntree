@@ -1,9 +1,21 @@
-import { View, Text } from 'react-native';
+import { memo } from 'react';
+import { View, Image, type ImageSourcePropType } from 'react-native';
 import { colorTheme } from '@/hooks/useColorTheme';
 
-const PIECE_CHARS: Record<string, string> = {
-  K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙',
-  k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟',
+// Lichess cburnett piece set (GPLv2+, Colin M.L. Burnett)
+const PIECES: Record<string, ImageSourcePropType> = {
+  K: require('@/assets/pieces/wK.png'),
+  Q: require('@/assets/pieces/wQ.png'),
+  R: require('@/assets/pieces/wR.png'),
+  B: require('@/assets/pieces/wB.png'),
+  N: require('@/assets/pieces/wN.png'),
+  P: require('@/assets/pieces/wP.png'),
+  k: require('@/assets/pieces/bK.png'),
+  q: require('@/assets/pieces/bQ.png'),
+  r: require('@/assets/pieces/bR.png'),
+  b: require('@/assets/pieces/bB.png'),
+  n: require('@/assets/pieces/bN.png'),
+  p: require('@/assets/pieces/bP.png'),
 };
 
 function parseFen(fen: string): (string | null)[][] {
@@ -28,7 +40,7 @@ interface ChessboardProps {
   lightSquareColor?: string;
 }
 
-export function Chessboard({
+export const Chessboard = memo(function Chessboard({
   fen,
   orientation = 'white',
   darkSquareColor = colorTheme.gold.dim,
@@ -55,19 +67,12 @@ export function Chessboard({
                   justifyContent: 'center',
                 }}
               >
-                {piece && (
-                  <Text
-                    style={{
-                      fontSize: 28,
-                      lineHeight: 34,
-                      color: piece === piece.toUpperCase() ? '#f0ebe3' : '#1a1a1a',
-                      textShadowColor: piece === piece.toUpperCase() ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.3)',
-                      textShadowOffset: { width: 0, height: 1 },
-                      textShadowRadius: 2,
-                    }}
-                  >
-                    {PIECE_CHARS[piece]}
-                  </Text>
+                {piece && PIECES[piece] && (
+                  <Image
+                    source={PIECES[piece]}
+                    style={{ width: '85%', height: '85%' }}
+                    resizeMode="contain"
+                  />
                 )}
               </View>
             );
@@ -76,4 +81,4 @@ export function Chessboard({
       ))}
     </View>
   );
-}
+});

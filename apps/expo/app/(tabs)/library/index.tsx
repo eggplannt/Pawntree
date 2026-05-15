@@ -114,7 +114,7 @@ export default function LibraryScreen() {
                 <OpeningCard
                   key={opening.id}
                   opening={opening}
-                  onPress={() => router.push(`/opening/${opening.id}`)}
+                  onPress={() => router.push({ pathname: `/opening/${opening.id}`, params: { name: opening.name, color: opening.color } })}
                   onDelete={async () => {
                     await deleteOpening(opening.id);
                     loadOpenings();

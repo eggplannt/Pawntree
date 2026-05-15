@@ -5,6 +5,7 @@ import type { Opening, Node } from '@/types';
 // ── Openings ────────────────────────────────────────────────────────────────
 
 export async function listOpenings() {
+  // Single query — openings + node count. Skip review_cards until Phase 6.
   const { data, error } = await supabase
     .from('openings')
     .select('*, nodes(count)')
@@ -12,37 +13,13 @@ export async function listOpenings() {
 
   if (error) throw error;
 
-  // Get due counts via review_cards → nodes → openings
-  const { data: dueCards } = await supabase
-    .from('review_cards')
-    .select('node_id, due_date, nodes!inner(opening_id)')
-    .lte('due_date', new Date().toISOString().slice(0, 10));
-
-  const dueCounts = new Map<string, number>();
-  for (const card of dueCards ?? []) {
-    const openingId = (card.nodes as any)?.opening_id;
-    if (openingId) dueCounts.set(openingId, (dueCounts.get(openingId) ?? 0) + 1);
-  }
-
   return (data ?? []).map((o) => {
     const nodeCount = (o.nodes as any)?.[0]?.count ?? 0;
-    const dueCount = dueCounts.get(o.id) ?? 0;
-    return { ...o, nodeCount, dueCount } as Opening & {
+    return { ...o, nodeCount, dueCount: 0 } as Opening & {
       nodeCount: number;
       dueCount: number;
     };
   });
-}
-
-export async function getOpening(id: string) {
-  const { data, error } = await supabase
-    .from('openings')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (error) throw error;
-  return data as Opening;
 }
 
 export interface ImportProgress {
@@ -90,6 +67,7 @@ export async function deleteOpening(id: string) {
 
 // ── Nodes ───────────────────────────────────────────────────────────────────
 
+/** Single query: fetch nodes for an opening. Opening data passed from library. */
 export async function getNodes(openingId: string): Promise<Node[]> {
   const { data, error } = await supabase
     .from('nodes')
@@ -124,6 +102,12 @@ export function buildTree(nodes: Node[]): Node | null {
 }
 
 // ── PGN Import ──────────────────────────────────────────────────────────────
+// Batch insert: nodes are inserted in chunks instead of one-by-one.
+// The root node is inserted first (needs its real ID), then children
+// are inserted in batches of up to BATCH_SIZE, in sort_order so parents
+// always exist before their children.
+
+const BATCH_SIZE = 50;
 
 async function importPgnToOpening(
   openingId: string,
@@ -137,6 +121,7 @@ async function importPgnToOpening(
 
   onProgress?.({ phase: 'importing', current: 0, total });
 
+  // Insert root first to get its real ID
   const rootFlat = flat.find((n) => n._parentTempId === null)!;
   const { data: rootRow, error: rootErr } = await supabase
     .from('nodes')
@@ -156,31 +141,46 @@ async function importPgnToOpening(
   const idMap = new Map<number, string>();
   idMap.set(rootFlat._tempId, rootRow.id);
 
+  // Insert remaining nodes in batches
   const rest = flat.filter((n) => n._parentTempId !== null);
-  for (let i = 0; i < rest.length; i++) {
-    const node = rest[i];
-    const parentId = idMap.get(node._parentTempId!);
-    if (!parentId) continue;
 
-    const { data: row, error } = await supabase
-      .from('nodes')
-      .insert({
-        opening_id: openingId,
-        parent_id: parentId,
-        fen: node.fen,
-        move_san: node.move_san,
-        move_uci: node.move_uci,
-        annotation: node.annotation,
-        sort_order: node.sort_order,
+  for (let batchStart = 0; batchStart < rest.length; batchStart += BATCH_SIZE) {
+    const batch = rest.slice(batchStart, batchStart + BATCH_SIZE);
+    const rows = batch
+      .map((node) => {
+        const parentId = idMap.get(node._parentTempId!);
+        if (!parentId) return null;
+        return {
+          opening_id: openingId,
+          parent_id: parentId,
+          fen: node.fen,
+          move_san: node.move_san,
+          move_uci: node.move_uci,
+          annotation: node.annotation,
+          sort_order: node.sort_order,
+        };
       })
-      .select()
-      .single();
+      .filter(Boolean) as any[];
+
+    if (rows.length === 0) continue;
+
+    const { data: inserted, error } = await supabase
+      .from('nodes')
+      .insert(rows)
+      .select('id, sort_order');
 
     if (error) throw error;
-    idMap.set(node._tempId, row.id);
 
-    if (i % 5 === 0 || i === rest.length - 1) {
-      onProgress?.({ phase: 'importing', current: i + 2, total });
+    // Map temp IDs to real IDs by matching sort_order
+    for (const row of inserted ?? []) {
+      const orig = batch.find((n) => n.sort_order === row.sort_order);
+      if (orig) idMap.set(orig._tempId, row.id);
     }
+
+    onProgress?.({
+      phase: 'importing',
+      current: Math.min(batchStart + BATCH_SIZE, rest.length) + 1,
+      total,
+    });
   }
 }
