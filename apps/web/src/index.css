@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Color tokens are injected as CSS custom properties by useColorTheme.ts
+   from the shared palette in /theme/colors.js — do NOT define them here. */
+
 * {
   box-sizing: border-box;
 }
@@ -12,7 +15,8 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
-  background-color: #0f1117;
+  background-color: var(--color-bg-base, #020303);
+  color: var(--color-content-primary, #f0ebe3);
 }
 
 body {

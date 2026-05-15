@@ -7,14 +7,17 @@ export default function SettingsScreen() {
   return (
     <AppShell>
       <View className="flex-1 bg-bg-base p-8">
-        <Text className="text-content-primary text-2xl font-semibold mb-2">Settings</Text>
+        <View className="flex-row items-center gap-2 mb-2">
+          <Text className="text-content-muted text-lg">⚙</Text>
+          <Text className="text-content-primary text-2xl font-semibold">Settings</Text>
+        </View>
         {user && <Text className="text-content-secondary text-sm mb-4">{user.email}</Text>}
         <Text className="text-content-muted text-sm mb-8">More settings coming in Phase 7.</Text>
         <Pressable
           onPress={signOut}
-          className="items-center justify-center bg-bg-elevated border border-border rounded-lg h-12 active:opacity-70"
+          className="items-center justify-center bg-bg-elevated border border-border rounded-xl h-12 active:opacity-70"
         >
-          <Text className="text-red-400 font-medium text-base">Sign Out</Text>
+          <Text className="text-danger font-medium text-base">Sign Out</Text>
         </Pressable>
       </View>
     </AppShell>

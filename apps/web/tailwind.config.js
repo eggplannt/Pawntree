@@ -1,30 +1,39 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         bg: {
-          base:     '#0f1117',
-          surface:  '#1a1d27',
-          elevated: '#242736',
+          base:     'var(--color-bg-base)',
+          surface:  'var(--color-bg-surface)',
+          elevated: 'var(--color-bg-elevated)',
         },
         content: {
-          primary:   '#e8e3d8',
-          secondary: '#9a9490',
-          muted:     '#5a5760',
+          primary:   'var(--color-content-primary)',
+          secondary: 'var(--color-content-secondary)',
+          muted:     'var(--color-content-muted)',
         },
         accent: {
-          DEFAULT: '#c8a96e',
-          hover:   '#d4b87a',
-          dim:     '#8a7048',
+          DEFAULT: 'var(--color-accent)',
+          hover:   'var(--color-accent-hover)',
+          dim:     'var(--color-accent-dim)',
+        },
+        gold: {
+          DEFAULT: 'var(--color-gold)',
+          dim:     'var(--color-gold-dim)',
         },
         border: {
-          DEFAULT: '#2a2d3a',
-          subtle:  '#1e2130',
+          DEFAULT: 'var(--color-border)',
+          subtle:  'var(--color-border-subtle)',
         },
-        danger:  '#e05555',
-        success: '#4caf7d',
+        danger:  'var(--color-danger)',
+        success: 'var(--color-success)',
+        board: {
+          dark:  'var(--color-board-dark)',
+          light: 'var(--color-board-light)',
+        },
       },
     },
   },

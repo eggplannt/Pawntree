@@ -1,34 +1,129 @@
-/**
- * Centralized color tokens — mirrors tailwind.config.js.
- * Use Tailwind classes in JSX; use this hook when you need raw color values
- * (SVGs, canvas, third-party components that don't accept className).
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import colors from '../../../../theme/colors.json';
+
+type Theme = 'dark' | 'light';
+
+const STORAGE_KEY = 'pawntree-theme';
+
+const palettes = { dark: colors.dark, light: colors.light } as const;
+
+function getInitialTheme(): Theme {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored === 'light' || stored === 'dark') return stored;
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+/** Flatten palette object → CSS custom property entries.
+ *  { bg: { base: '#fff' } }         → { '--color-bg-base': '#fff' }
+ *  { accent: { DEFAULT: '#0f0' } }  → { '--color-accent': '#0f0' }
  */
-export const colorTheme = {
-  bg: {
-    base:     '#0f1117',
-    surface:  '#1a1d27',
-    elevated: '#242736',
-  },
-  content: {
-    primary:   '#e8e3d8',
-    secondary: '#9a9490',
-    muted:     '#5a5760',
-  },
-  accent: {
-    default: '#c8a96e',
-    hover:   '#d4b87a',
-    dim:     '#8a7048',
-  },
-  border: {
-    default: '#2a2d3a',
-    subtle:  '#1e2130',
-  },
-  danger:  '#e05555',
-  success: '#4caf7d',
-} as const;
+function flattenToCssVars(obj: Record<string, unknown>, prefix = '--color'): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const varName = key === 'DEFAULT' ? prefix : `${prefix}-${key}`;
+    if (typeof value === 'string') {
+      result[varName] = value;
+    } else {
+      Object.assign(result, flattenToCssVars(value as Record<string, unknown>, varName));
+    }
+  }
+  return result;
+}
 
-export type ColorTheme = typeof colorTheme;
+/** Apply palette as CSS custom properties on :root so Tailwind `var()` refs work. */
+function applyPalette(palette: Record<string, unknown>) {
+  const vars = flattenToCssVars(palette);
+  const root = document.documentElement.style;
+  for (const [name, value] of Object.entries(vars)) {
+    root.setProperty(name, value);
+  }
+}
 
-export function useColorTheme() {
-  return colorTheme;
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  if (theme === 'light') {
+    root.classList.add('light');
+  } else {
+    root.classList.remove('light');
+  }
+  applyPalette(palettes[theme]);
+}
+
+/** Read a CSS custom property from :root. */
+function cssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+/** Returns the current resolved color values (for third-party components). */
+export function getColorValues() {
+  return {
+    bg: {
+      base:     cssVar('--color-bg-base'),
+      surface:  cssVar('--color-bg-surface'),
+      elevated: cssVar('--color-bg-elevated'),
+    },
+    content: {
+      primary:   cssVar('--color-content-primary'),
+      secondary: cssVar('--color-content-secondary'),
+      muted:     cssVar('--color-content-muted'),
+    },
+    accent: {
+      default: cssVar('--color-accent'),
+      hover:   cssVar('--color-accent-hover'),
+      dim:     cssVar('--color-accent-dim'),
+    },
+    gold: {
+      default: cssVar('--color-gold'),
+      dim:     cssVar('--color-gold-dim'),
+    },
+    border: {
+      default: cssVar('--color-border'),
+      subtle:  cssVar('--color-border-subtle'),
+    },
+    danger:  cssVar('--color-danger'),
+    success: cssVar('--color-success'),
+    board: {
+      dark:  cssVar('--color-board-dark'),
+      light: cssVar('--color-board-light'),
+    },
+  };
+}
+
+export type ColorTheme = ReturnType<typeof getColorValues>;
+
+interface ThemeContextValue {
+  theme: Theme;
+  toggleTheme: () => void;
+  colors: ColorTheme;
+}
+
+const ThemeContext = createContext<ThemeContextValue | null>(null);
+
+export { ThemeContext };
+
+export function useThemeProvider() {
+  const [theme, setTheme] = useState<Theme>(() => {
+    const t = getInitialTheme();
+    applyTheme(t); // apply immediately so CSS vars are set before first paint
+    return t;
+  });
+  const [colors, setColors] = useState<ColorTheme>(getColorValues);
+
+  useEffect(() => {
+    applyTheme(theme);
+    localStorage.setItem(STORAGE_KEY, theme);
+    requestAnimationFrame(() => setColors(getColorValues()));
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+  }, []);
+
+  return { theme, toggleTheme, colors };
+}
+
+export function useColorTheme(): ThemeContextValue {
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error('useColorTheme must be used within ThemeProvider');
+  return ctx;
 }

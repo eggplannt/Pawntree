@@ -1,0 +1,64 @@
+{
+  "dark": {
+    "bg": {
+      "base":     "#020303",
+      "surface":  "#070b09",
+      "elevated": "#0e1512"
+    },
+    "content": {
+      "primary":   "#f0ebe3",
+      "secondary": "#9aa89c",
+      "muted":     "#566e5e"
+    },
+    "accent": {
+      "DEFAULT": "#3ecf8e",
+      "hover":   "#5ee9aa",
+      "dim":     "#1f7a50"
+    },
+    "gold": {
+      "DEFAULT": "#f5b731",
+      "dim":     "#a67c1a"
+    },
+    "border": {
+      "DEFAULT": "#152018",
+      "subtle":  "#0e1611"
+    },
+    "danger":  "#ef6461",
+    "success": "#3ecf8e",
+    "board": {
+      "dark":  "#8a7355",
+      "light": "#dcc8a0"
+    }
+  },
+  "light": {
+    "bg": {
+      "base":     "#f6f3ed",
+      "surface":  "#ffffff",
+      "elevated": "#eae5db"
+    },
+    "content": {
+      "primary":   "#1a2420",
+      "secondary": "#4a5a50",
+      "muted":     "#8a9a8e"
+    },
+    "accent": {
+      "DEFAULT": "#2a9d60",
+      "hover":   "#35b06e",
+      "dim":     "#b8dcc8"
+    },
+    "gold": {
+      "DEFAULT": "#d49a1a",
+      "dim":     "#f0d48a"
+    },
+    "border": {
+      "DEFAULT": "#cad5c6",
+      "subtle":  "#dae4d6"
+    },
+    "danger":  "#d04440",
+    "success": "#2a9d60",
+    "board": {
+      "dark":  "#a07850",
+      "light": "#ead8b8"
+    }
+  }
+}

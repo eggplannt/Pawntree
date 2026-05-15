@@ -1,14 +1,17 @@
 import { useAuth } from '@/hooks/useAuth';
+import { useColorTheme } from '@/hooks/useColorTheme';
+import { PawnTreeLogo, PawnTreeIcon } from '@/components/Logo';
 import { useState } from 'react';
 
 const FEATURES = [
-  'Import or build opening trees from PGN',
-  'Depth-first practice drills',
-  'Anki-style daily review sessions',
+  { icon: '♟', text: 'Import or build opening trees from PGN' },
+  { icon: '⚔', text: 'Depth-first practice drills' },
+  { icon: '✦', text: 'Anki-style daily review sessions' },
 ];
 
 export default function Login() {
   const { signInWithGoogle } = useAuth();
+  const { theme, toggleTheme } = useColorTheme();
   const [loading, setLoading] = useState(false);
 
   function handleLogin() {
@@ -17,57 +20,85 @@ export default function Login() {
   }
 
   return (
-    <div className="h-full flex bg-bg-base">
+    <div className="h-full flex flex-col bg-bg-base relative overflow-hidden">
+      {/* Theme toggle */}
+      <button
+        onClick={toggleTheme}
+        className="absolute top-5 right-5 text-content-muted hover:text-content-primary transition-colors text-lg z-10"
+        title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      >
+        {theme === 'dark' ? '☀' : '☾'}
+      </button>
 
-      {/* Left panel — branding */}
-      <div className="flex-1 hidden md:flex bg-bg-surface border-r border-border items-center justify-center p-16">
-        <div className="max-w-sm w-full">
-          <h1 className="text-accent text-5xl font-bold mb-4">Pawntree</h1>
-          <p className="text-content-secondary text-xl leading-8 mb-12">
-            Build your opening repertoire. Train with spaced repetition. Never forget a line again.
+      {/* Decorative background glow */}
+      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-accent/5 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-gold/5 blur-3xl pointer-events-none" />
+
+      <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-12 md:gap-20 p-8 relative z-1">
+        {/* Left — branding */}
+        <div className="max-w-md text-center md:text-left">
+          <div className="flex justify-center md:justify-start mb-6">
+            <PawnTreeLogo size="xl" />
+          </div>
+          <p className="text-content-secondary text-lg md:text-xl leading-8 mb-10">
+            Build your opening repertoire.{' '}
+            <span className="text-accent">Train with spaced repetition.</span>{' '}
+            Never forget a line again.
           </p>
-          <ul className="flex flex-col gap-4">
-            {FEATURES.map((f) => (
-              <li key={f} className="flex items-start gap-3">
-                <span className="text-accent mt-1 leading-none">✦</span>
-                <span className="text-content-secondary text-base">{f}</span>
-              </li>
+
+          <div className="hidden md:flex flex-col gap-4">
+            {FEATURES.map(({ icon, text }) => (
+              <div key={text} className="flex items-center gap-3">
+                <span className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent shrink-0">
+                  {icon}
+                </span>
+                <span className="text-content-secondary">{text}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
-      </div>
 
-      {/* Right panel — sign in */}
-      <div className="flex-1 flex items-center justify-center p-8">
+        {/* Right — sign in card */}
         <div className="w-full max-w-sm">
-          {/* Mobile logo */}
-          <h1 className="text-accent text-4xl font-bold mb-2 md:hidden">Pawntree</h1>
+          <div className="bg-bg-surface border border-border rounded-2xl p-8 shadow-lg shadow-black/20">
+            {/* Decorative top stripe */}
+            <div className="flex gap-1 mb-6">
+              <div className="h-1 flex-1 rounded-full bg-accent" />
+              <div className="h-1 flex-1 rounded-full bg-gold" />
+              <div className="h-1 flex-1 rounded-full bg-accent-dim" />
+            </div>
 
-          <h2 className="text-content-primary text-3xl font-semibold mb-2">Sign in</h2>
-          <p className="text-content-secondary text-sm mb-8 leading-6">
-            Continue with your Google account to access your repertoire.
-          </p>
+            <h2 className="text-content-primary text-2xl font-semibold mb-2">Welcome back</h2>
+            <p className="text-content-secondary text-sm mb-8 leading-6">
+              Sign in to access your repertoire.
+            </p>
 
-          <button
-            onClick={handleLogin}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 bg-bg-elevated border border-border rounded-lg px-5 h-12 text-content-primary font-medium text-base hover:bg-bg-surface transition-colors disabled:opacity-60"
-          >
-            {loading ? (
-              <span className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <>
-                <GoogleIcon />
-                Continue with Google
-              </>
-            )}
-          </button>
+            <button
+              onClick={handleLogin}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 bg-bg-elevated border border-border rounded-xl px-5 h-12 text-content-primary font-medium text-base hover:border-accent/40 transition-all disabled:opacity-60"
+            >
+              {loading ? (
+                <span className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <GoogleIcon />
+                  Continue with Google
+                </>
+              )}
+            </button>
 
-          <p className="text-content-muted text-xs text-center mt-8 leading-5">
-            By signing in you agree to the terms of service.
-            <br />
-            Your data stays on your instance.
-          </p>
+            <p className="text-content-muted text-xs text-center mt-6 leading-5">
+              By signing in you agree to the terms of service.
+            </p>
+          </div>
+
+          {/* Decorative pawns */}
+          <div className="flex justify-center gap-2 mt-4 opacity-20">
+            {[...Array(5)].map((_, i) => (
+              <PawnTreeIcon key={i} size={16} />
+            ))}
+          </div>
         </div>
       </div>
     </div>
